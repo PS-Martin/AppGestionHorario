@@ -1,0 +1,295 @@
+'Estos dos métodos permiten hacer dinámico el texto de un botón "CommandButton1", a partir de la celda "A1", pero tal vez solo funcionen con un botón activex.
+
+    Dim xStr As String
+    Private Sub Worksheet_Change(ByVal Target As Range)
+        Dim xShapeRg As ShapeRange
+        On Error Resume Next
+        If Not Application.Intersect(Target, Range("A1")) Is Nothing Then
+            Me.CommandButton1.Caption = Target.Text
+            Set xShapeRg = ActiveSheet.Shapes.Range(xStr)
+            If xShapeRg Is Nothing Then Set xShapeRg = ActiveSheet.Shapes.Range("CommandButton1")
+            Application.EnableEvents = False
+            xShapeRg.Select
+            Application.EnableEvents = True
+            Selection.Name = Target.Text
+        End If
+    End Sub
+    Private Sub Worksheet_SelectionChange(ByVal Target As Range)
+        If (Not Intersect(Target, Range("A1")) Is Nothing) And Target.Text <> "" Then
+            xStr = Target.Text
+        End If
+    End Sub
+
+
+Sub generarInforme()
+    ActiveWorkbook.Sheets("CONSOLA").Unprotect Password:="avs"
+    
+    Dim mes As String
+    Dim saltoDia As Integer
+    Dim saltoProys As Integer
+    
+    Dim fichero As String
+    Dim linea As String
+    
+    'nos aseguramos de estar en esta hoja para seleccionar el elemento deseado.
+    ActiveWorkbook.Sheets("CONSOLA").Select
+    mes = Range("K4").Value
+    saltoDia = 0
+    saltoProys = 1
+     
+    'nos vamos a la hoja correspondiente al mes, y seleccionamos la casilla de partida
+    ActiveWorkbook.Sheets(mes).Select
+    Range("C2").Select
+    
+    fichero = Application.DefaultFilePath & "\" & "informeHoras-" & mes & ".txt"
+    Open fichero For Output As #1
+    
+    
+    Do While Not IsEmpty(ActiveCell.Offset(saltoDia, 0))
+        
+        If IsEmpty(ActiveCell.Offset(saltoDia + 1, -2)) Then
+            MsgBox "Uno de los días está sin finalizar."
+            Close #1
+            Exit Sub
+        End If
+        
+        saltoProys = 1
+        
+        Do While Range(ActiveCell.Offset(saltoDia + 1, -2).Value).Offset(0, saltoProys).Value <> "FIN"
+            
+            linea = CStr(ActiveCell.Offset(saltoDia, 0)) & ";" & CStr(Range(ActiveCell.Offset(saltoDia + 1, -2).Value).Offset(0, saltoProys).Value) & ";" & CStr(Range(ActiveCell.Offset(saltoDia + 1, -2).Value).Offset(1, saltoProys).Value) & ";"
+       
+            Write #1, linea
+           
+            saltoProys = saltoProys + 1
+        Loop
+    
+        saltoDia = saltoDia + 6
+    Loop
+    
+    Close #1
+    
+    ActiveWorkbook.Sheets("CONSOLA").Select
+    Range("B1").Select
+    
+    ActiveWorkbook.Sheets("CONSOLA").Protect Password:="avs"
+End Sub
+
+
+'Este metodo permite generar una lista, celda por celda, de los datos adaptados a instrucciones javascript, para introducirlos en la plataforma web.
+Sub generarDatos()
+    ActiveWorkbook.Sheets("CONSOLA").Unprotect Password:="avs"
+    
+    Dim mes As String
+    Dim saltoDia As Integer
+    Dim saltoProys As Integer
+    
+    Dim linea As String
+    Dim nomProy As String
+    Dim accionP As String
+    Dim fechaP As String
+    Dim horasP As String
+    Dim commentP As String
+    Dim tareaP As String
+    
+    Dim saltoJava As Integer
+    saltoJava = 0
+    
+    Dim textoA3 As String
+    Dim textoA4 As String
+    Dim textoA5 As String
+    Dim textoA6 As String
+    Dim textoA7 As String
+    Dim textoA8 As String
+    Dim textoComp As String
+    
+    'este string es necesario tras introducir xPROY (proyecto) para actualizar campos.
+    Dim stringActualiz As String
+     stringActualiz = "ew_UpdateOpt.call(x_KPROY);"
+    Dim funcDelay As String
+     funcDelay = "setTimeout(function(){"
+    Dim actualizTar As String
+     actualizTar = "ew_AutoFill(x_KTAR);"
+    
+    Dim strComillas As String
+     strComillas = Chr$(34)
+    
+    'nos aseguramos de estar en esta hoja para seleccionar el elemento deseado.
+    ActiveWorkbook.Sheets("CONSOLA").Select
+    mes = Range("K4").Value
+    saltoDia = 0
+    saltoProys = 1
+        
+    'nos vamos a la hoja correspondiente al mes
+    ActiveWorkbook.Sheets(mes).Select
+ 
+    Range("C2").Select
+    
+    'Con esta instrucción nos aseguramos de borrar todos los contenidos (no el formato) de las celdas que vamos a emplear, para evitar malentendidos.
+    Worksheets("Datos Informe").Range("I2:I800").ClearContents
+    
+    Do While Not IsEmpty(ActiveCell.Offset(saltoDia, 0))
+        
+        'Nos aseguramos de que no haya ningún día sin terminar. Es decir, este metodo se debería usar solo al principio o final del día, cuando tenemos un resumen completo de todos los dias.
+        If IsEmpty(ActiveCell.Offset(saltoDia + 1, -2)) Then
+            MsgBox "Uno de los días está sin finalizar."
+            Close #1
+            Exit Sub
+        End If
+        
+        saltoProys = 1
+        
+        Do While Range(ActiveCell.Offset(saltoDia + 1, -2).Value).Offset(0, saltoProys).Value <> "FIN"
+        
+            
+            'Aqui tomamos los textos de Datos Informe que vamos a buscar contenidos en el String del Proyecto evaluado ese dia (en texto Comp?
+            textoA3 = CStr(Worksheets("Datos Informe").Range("A3").Value)
+            textoA4 = CStr(Worksheets("Datos Informe").Range("A4").Value)
+            textoA5 = CStr(Worksheets("Datos Informe").Range("A5").Value)
+            textoA6 = CStr(Worksheets("Datos Informe").Range("A6").Value)
+            textoA7 = CStr(Worksheets("Datos Informe").Range("A7").Value)
+            textoA8 = CStr(Worksheets("Datos Informe").Range("A8").Value)
+            'Aqui buscamos si se encuentra el texto de las casillas correspondientes para asignarle un valor
+            textoComp = CStr(Range(ActiveCell.Offset(saltoDia + 1, -2).Value).Offset(0, saltoProys).Value)
+         
+           If Not InStr(textoComp, textoA3) <> 0 Then
+            
+                accionP = Right(Range(ActiveCell.Offset(saltoDia + 1, -2).Value).Offset(0, saltoProys).Value, 2)
+                
+                Select Case accionP
+                
+                    Case "AR"
+                        accionP = "9"
+                    Case "NI"
+                        accionP = "9"
+                    Case "MT"
+                        accionP = "11"
+                    Case "NC"
+                        accionP = "13"
+                    
+                
+                End Select
+           
+           End If
+           
+           
+           If InStr(textoComp, textoA3) <> 0 Then
+                
+                'Dado como se guardan los proyectos en cada mes, ha sido necesario retirar el nombre de OTROS para quedarse solo con el comentario, que se almacena en el otro módulo como una tarea
+                nomProy = Mid(textoComp, 7, Len(textoComp))
+                commentP = "document.getElementById(""x_comentario"").value =" & strComillas & nomProy & strComillas & ";"
+                'El nombre del proyecto se introduce como su equivalente numérico, ya que así lo gestiona la página web
+                nomProy = "document.getElementById(""x_KPROY"").value =" & Worksheets("Datos Informe").Range("B3").Value & ";"
+                'Con la tarea sucede lo mismo, ya que es distinto su valor aunque sea la misma tarea, para cada proyecto
+                tareaP = "document.getElementById(""x_KTAR"").value =" & Worksheets("Datos Informe").Range("D3").Value & ";" & actualizTar
+                'En este caso la acción siempre es la misma, al ser OTROS
+                accionP = "document.getElementById(""x_KACC"").value =" & "31" & ";"
+                'Dado que la fecha se guarda en formato completo, hace falta retirar el año y añadirselo como dos cifras
+                fechaP = Left(CStr(ActiveCell.Offset(saltoDia, 0).Value), 6) & Right(Year(Now()), 2)
+                fechaP = "document.getElementById(""x_fecha"").value =" & strComillas & fechaP & strComillas & ";"
+                'En el numero de horas se hace necesario sustituir las comas (decimales de VBA) por puntos (decimales de javascript), para que sean reconocidas por la web
+                horasP = Replace(CStr(Range(ActiveCell.Offset(saltoDia + 1, -2).Value).Offset(1, saltoProys).Value), ",", ".")
+                horasP = "document.getElementById(""x_horas"").value =" & horasP & ";"
+                
+                'Finalmente se entrega una línea de texto que contiene código javascript que puede ser introducido directamente en la página.
+                linea = nomProy & stringActualiz & funcDelay & tareaP & "},100);" & accionP & fechaP & horasP & commentP & funcDelay & "$(""#btnAction"").click()" & ";" & "},150);"
+                
+                Worksheets("Datos Informe").Range("I2").Offset(saltoJava, 0).Value = linea
+           
+           
+           ElseIf InStr(textoComp, textoA4) <> 0 Then
+           
+                nomProy = "document.getElementById(""x_KPROY"").value =" & Worksheets("Datos Informe").Range("B4").Value & ";"
+                tareaP = "document.getElementById(""x_KTAR"").value =" & Worksheets("Datos Informe").Range("D3").Value & ";" & actualizTar
+                accionP = "document.getElementById(""x_KACC"").value =" & accionP & ";"
+                fechaP = Left(CStr(ActiveCell.Offset(saltoDia, 0).Value), 6) & Right(Year(Now()), 2)
+                fechaP = "document.getElementById(""x_fecha"").value =" & strComillas & fechaP & strComillas & ";"
+                horasP = Replace(CStr(Range(ActiveCell.Offset(saltoDia + 1, -2).Value).Offset(1, saltoProys).Value), ",", ".")
+                horasP = "document.getElementById(""x_horas"").value =" & horasP & ";"
+                commentP = "document.getElementById(""x_comentario"").value =" & strComillas & strComillas & ";"
+                
+                linea = nomProy & stringActualiz & funcDelay & tareaP & "},100);" & accionP & fechaP & horasP & commentP & funcDelay & "$(""#btnAction"").click()" & ";" & "},150);"
+                
+                Worksheets("Datos Informe").Range("I2").Offset(saltoJava, 0).Value = linea
+           
+           ElseIf InStr(textoComp, textoA5) <> 0 Then
+           
+                nomProy = "document.getElementById(""x_KPROY"").value =" & Worksheets("Datos Informe").Range("B5").Value & ";"
+                tareaP = "document.getElementById(""x_KTAR"").value =" & Worksheets("Datos Informe").Range("D3").Value & ";" & actualizTar
+                accionP = "document.getElementById(""x_KACC"").value =" & accionP & ";"
+                fechaP = Left(CStr(ActiveCell.Offset(saltoDia, 0).Value), 6) & Right(Year(Now()), 2)
+                fechaP = "document.getElementById(""x_fecha"").value =" & strComillas & fechaP & strComillas & ";"
+                horasP = Replace(CStr(Range(ActiveCell.Offset(saltoDia + 1, -2).Value).Offset(1, saltoProys).Value), ",", ".")
+                horasP = "document.getElementById(""x_horas"").value =" & horasP & ";"
+                commentP = "document.getElementById(""x_comentario"").value =" & strComillas & strComillas & ";"
+                
+                linea = nomProy & stringActualiz & funcDelay & tareaP & "},100);" & accionP & fechaP & horasP & commentP & funcDelay & "$(""#btnAction"").click()" & ";" & "},150);"
+                
+                Worksheets("Datos Informe").Range("I2").Offset(saltoJava, 0).Value = linea
+           
+           ElseIf InStr(textoComp, textoA6) <> 0 Then
+           
+                nomProy = "document.getElementById(""x_KPROY"").value =" & Worksheets("Datos Informe").Range("B6").Value & ";"
+                tareaP = "document.getElementById(""x_KTAR"").value =" & Worksheets("Datos Informe").Range("D3").Value & ";" & actualizTar
+                accionP = "document.getElementById(""x_KACC"").value =" & accionP & ";"
+                fechaP = Left(CStr(ActiveCell.Offset(saltoDia, 0).Value), 6) & Right(Year(Now()), 2)
+                fechaP = "document.getElementById(""x_fecha"").value =" & strComillas & fechaP & strComillas & ";"
+                horasP = Replace(CStr(Range(ActiveCell.Offset(saltoDia + 1, -2).Value).Offset(1, saltoProys).Value), ",", ".")
+                horasP = "document.getElementById(""x_horas"").value =" & horasP & ";"
+                commentP = "document.getElementById(""x_comentario"").value =" & strComillas & strComillas & ";"
+                
+                linea = nomProy & stringActualiz & funcDelay & tareaP & "},100);" & accionP & fechaP & horasP & commentP & funcDelay & "$(""#btnAction"").click()" & ";" & "},150);"
+                
+                Worksheets("Datos Informe").Range("I2").Offset(saltoJava, 0).Value = linea
+           
+           
+           
+           ElseIf InStr(textoComp, textoA7) <> 0 Then
+           
+                nomProy = "document.getElementById(""x_KPROY"").value =" & Worksheets("Datos Informe").Range("B7").Value & ";"
+                tareaP = "document.getElementById(""x_KTAR"").value =" & Worksheets("Datos Informe").Range("D3").Value & ";" & actualizTar
+                accionP = "document.getElementById(""x_KACC"").value =" & accionP & ";"
+                fechaP = Left(CStr(ActiveCell.Offset(saltoDia, 0).Value), 6) & Right(Year(Now()), 2)
+                fechaP = "document.getElementById(""x_fecha"").value =" & strComillas & fechaP & strComillas & ";"
+                horasP = Replace(CStr(Range(ActiveCell.Offset(saltoDia + 1, -2).Value).Offset(1, saltoProys).Value), ",", ".")
+                horasP = "document.getElementById(""x_horas"").value =" & horasP & ";"
+                commentP = "document.getElementById(""x_comentario"").value =" & strComillas & strComillas & ";"
+                
+                linea = nomProy & stringActualiz & funcDelay & tareaP & "},100);" & accionP & fechaP & horasP & commentP & funcDelay & "$(""#btnAction"").click()" & ";" & "},150);"
+                
+                Worksheets("Datos Informe").Range("I2").Offset(saltoJava, 0).Value = linea
+           
+           
+           ElseIf InStr(textoComp, textoA8) <> 0 Then
+           
+                nomProy = "document.getElementById(""x_KPROY"").value =" & Worksheets("Datos Informe").Range("B8").Value & ";"
+                tareaP = "document.getElementById(""x_KTAR"").value =" & Worksheets("Datos Informe").Range("D3").Value & ";" & actualizTar
+                accionP = "document.getElementById(""x_KACC"").value =" & accionP & ";"
+                fechaP = Left(CStr(ActiveCell.Offset(saltoDia, 0).Value), 6) & Right(Year(Now()), 2)
+                fechaP = "document.getElementById(""x_fecha"").value =" & strComillas & fechaP & strComillas & ";"
+                horasP = Replace(CStr(Range(ActiveCell.Offset(saltoDia + 1, -2).Value).Offset(1, saltoProys).Value), ",", ".")
+                horasP = "document.getElementById(""x_horas"").value =" & horasP & ";"
+                commentP = "document.getElementById(""x_comentario"").value =" & strComillas & strComillas & ";"
+                
+                linea = nomProy & stringActualiz & funcDelay & tareaP & "},100);" & accionP & fechaP & horasP & commentP & funcDelay & "$(""#btnAction"").click()" & ";" & "},150);"
+                
+                Worksheets("Datos Informe").Range("I2").Offset(saltoJava, 0).Value = linea
+            End If
+            
+            saltoJava = saltoJava + 1
+            saltoProys = saltoProys + 1
+        Loop
+    
+    saltoDia = saltoDia + 6
+    
+    
+    Loop
+    
+    Close #1
+    
+    ActiveWorkbook.Sheets("Datos Informe").Select
+    Range("I2").Select
+    
+    ActiveWorkbook.Sheets("CONSOLA").Protect Password:="avs"
+End Sub
+
